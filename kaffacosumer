@@ -1,0 +1,66 @@
+from confluent_kafka import Consumer, KafkaError
+
+class GenericKafkaConsumer:
+    def _init_(self, bootstrap_servers, group_id, topic):
+        self.bootstrap_servers = bootstrap_servers
+        self.group_id = group_id
+        self.topic = topic
+        self.consumer = self._create_consumer()
+
+    def _create_consumer(self):
+        """Create a Kafka consumer with given parameters."""
+        config = {
+            'bootstrap.servers': self.bootstrap_servers,
+            'group.id': self.group_id,
+            'auto.offset.reset': 'earliest'  # start from the earliest message
+        }
+        return Consumer(config)
+
+    def consume_messages(self, timeout=1.0):
+        """Consume messages from the Kafka topic."""
+        self.consumer.subscribe([self.topic])
+        while True:
+            msg = self.consumer.poll(timeout)
+            if msg is None:
+                continue  # No message received within the timeout
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    # End of partition event
+                    print(f"Reached end of partition for {self.topic}")
+                elif msg.error():
+                    # Error handling
+                    print(f"Error: {msg.error()}")
+                continue
+            
+            # Message successfully received
+            self.process_message(msg.value())
+
+    def process_message(self, message):
+        """Decode and process the Kafka message."""
+        try:
+            # Assuming the message is in bytes and needs decoding
+            decoded_message = message.decode('utf-8')
+            print(f"Consumed message: {decoded_message}")
+        except Exception as e:
+            print(f"Failed to decode message: {e}")
+
+    def close(self):
+        """Close the consumer instance."""
+        self.consumer.close()
+
+
+# Example usage
+if _name_ == "_main_":
+    # Replace these values with your Kafka cluster details
+    bootstrap_servers = "localhost:9092"
+    consumer_group_id = "my-group"
+    topic_name = "my-topic"
+    
+    consumer = GenericKafkaConsumer(bootstrap_servers, consumer_group_id, topic_name)
+    
+    try:
+        consumer.consume_messages()
+    except KeyboardInterrupt:
+        print("Stopping consumer...")
+    finally:
+        consumer.close()
