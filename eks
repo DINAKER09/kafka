@@ -64,3 +64,12 @@ Using eksctl makes it much easier to create an EKS cluster. Here's the basic com
 --nodes-min/--nodes-max: Min and max worker nodes for scaling
 --managed: Indicates the use of managed node groups
 
+
+
+admin_client = AdminClient({
+    'bootstrap.servers': bootstrap_servers,
+    'security.protocol': 'SSL',
+    'ssl.ca.location': '/path/to/ca.pem',
+    'ssl.certificate.location': '/path/to/client.pem',
+    'ssl.key.location': '/path/to/client.key'
+})
