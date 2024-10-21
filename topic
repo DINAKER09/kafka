@@ -1,0 +1,7 @@
+admin_client = AdminClient({
+    'bootstrap.servers': bootstrap_servers,
+    'security.protocol': 'SSL',
+    'ssl.ca.location': '/path/to/ca.pem',
+    'ssl.certificate.location': '/path/to/client.pem',
+    'ssl.key.location': '/path/to/client.key'
+})
