@@ -1,0 +1,35 @@
+import requests
+import json
+
+# Define your Avro schema as a string
+schema_str = """
+{
+   "type": "record",
+   "name": "User",
+   "fields": [
+       {"name": "name", "type": "string"},
+       {"name": "age", "type": "int"}
+   ]
+}
+"""
+
+# Schema Registry URL (Replace with your schema registry URL)
+schema_registry_url = "http://localhost:8081"
+
+# Subject under which to register the schema (usually topic-name-value for value schema)
+subject_name = "my_topic-value"
+
+# Prepare the payload for the request
+payload = {
+    "schema": json.dumps(schema_str)  # The schema should be a stringified JSON
+}
+
+# Register the schema with Schema Registry
+headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
+response = requests.post(f"{schema_registry_url}/subjects/{subject_name}/versions", headers=headers, data=json.dumps(payload))
+
+# Check the response status and print result
+if response.status_code == 200:
+    print(f"Schema registered successfully with ID: {response.json()['id']}")
+else:
+    print(f"Failed to register schema: {response.status_code} {response.text}")
