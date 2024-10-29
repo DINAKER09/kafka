@@ -1,0 +1,46 @@
+2. In your Python code, you will need to initialize the Datadog API with your API and APP keys.
+from datadog import initialize, api
+
+# Datadog API/APP key configuration
+options = {
+    'api_key': 'YOUR_API_KEY',
+    'app_key': 'YOUR_APP_KEY'
+}
+
+initialize(**options)
+get the api_key and app_key from your Datadog account by navigating to API Settings under Integration.
+
+3.integrate Datadog with Python’s built-in logging module. The DatadogHandler can be set up to send logs to Datadog.
+import logging
+from datadog import initialize, statsd
+from datadog.api.exceptions import ApiError
+from datadog import ThreadStats
+
+# Setup API and APP keys for initialization
+options = {
+    'api_key': 'YOUR_API_KEY',
+    'app_key': 'YOUR_APP_KEY'
+}
+
+initialize(**options)
+
+# Initialize Datadog logging
+logger = logging.getLogger('datadog_logger')
+logger.setLevel(logging.INFO)
+
+# Datadog handler to send logs to Datadog
+try:
+    from datadog import DDHandler
+    handler = DDHandler('YOUR_API_KEY')
+    logger.addHandler(handler)
+
+except ApiError as e:
+    print(f"Failed to send log to Datadog: {e}")
+
+# Log example
+logger.info("This is a test log sent to Datadog")
+
+4.docker thing
+# Combine user/group creation
+RUN groupadd -g 603 appgrp && \
+    useradd --disabled-password -u 500 -g 603 appusr
