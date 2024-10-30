@@ -1,0 +1,124 @@
+import boto3
+from botocore.exceptions import ClientError
+from base64 import b64decode
+import json
+import os
+import tempfile
+from typing import Dict, Tuple
+from contextlib import contextmanager
+
+class SSLCertificateManager:
+    def __init__(self, secret_name: str, region_name: str = "us-east-1"):
+        self.secret_name = secret_name
+        self.region_name = region_name
+        self._temp_files = []
+
+    def _parse_pem_objects(self, pem_data: str) -> Tuple[str, str, str]:
+        """
+        Parse PEM-encoded objects from a single string containing:
+        - Private key
+        - Certificate 1
+        - Certificate 2
+        """
+        # Split the PEM data at the boundaries
+        parts = pem_data.split('-----BEGIN ')
+        
+        # Extract private key
+        private_key = None
+        cert1 = None
+        cert2 = None
+        
+        for part in parts:
+            if not part.strip():
+                continue
+                
+            if 'ENCRYPTED PRIVATE KEY' in part:
+                private_key = f"-----BEGIN {part}"
+            elif 'CERTIFICATE' in part:
+                if cert1 is None:
+                    cert1 = f"-----BEGIN {part}"
+                else:
+                    cert2 = f"-----BEGIN {part}"
+        
+        if not all([private_key, cert1, cert2]):
+            raise ValueError("Failed to extract all required PEM objects")
+            
+        return private_key, cert1, cert2
+
+    def get_ssl_secrets(self) -> Tuple[str, str, str]:
+        """Retrieve SSL certificates from AWS Secrets Manager"""
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='secretsmanager',
+            region_name=self.region_name
+        )
+        
+        try:
+            response = client.get_secret_value(SecretId=self.secret_name)
+            
+            if 'SecretBinary' in response:
+                secret_binary = response['SecretBinary']
+                if isinstance(secret_binary, str):
+                    pem_data = secret_binary
+                else:
+                    pem_data = b64decode(secret_binary).decode('utf-8')
+            else:
+                raise ValueError("SecretBinary not found in response")
+            
+            # Parse the PEM objects
+            return self._parse_pem_objects(pem_data)
+            
+        except ClientError as e:
+            raise RuntimeError(f"Failed to retrieve secrets: {str(e)}") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to process secrets: {str(e)}") from e
+    
+    @contextmanager
+    def get_ssl_config(self) -> Dict[str, str]:
+        """
+        Context manager that provides Kafka SSL configuration with temporary certificate files.
+        Automatically cleans up temporary files when done.
+        """
+        try:
+            private_key, cert1, cert2 = self.get_ssl_secrets()
+            
+            # Write the certificates and key to temporary files
+            ssl_config = {
+                'bootstrap.servers': 'test.amazonaws.com:9092',
+                'security.protocol': 'SSL',
+                'ssl.key.location': self._write_cert_to_file(private_key, 'private.key'),
+                'ssl.certificate.location': self._write_cert_to_file(cert1, 'cert1.pem'),
+                'ssl.ca.location': self._write_cert_to_file(cert2, 'cert2.pem')
+            }
+            
+            yield ssl_config
+            
+        finally:
+            # Clean up temporary files
+            self._cleanup_temp_files()
+    
+    def _write_cert_to_file(self, cert_content: str, filename: str) -> str:
+        """Write certificate or key content to a temporary file with proper permissions"""
+        temp_dir = tempfile.gettempdir()
+        cert_path = os.path.join(temp_dir, f"kafka_ssl_{os.getpid()}_{filename}")
+        
+        try:
+            # Write with restricted permissions
+            with open(cert_path, 'w', opener=lambda path, flags: os.open(path, flags, 0o600)) as f:
+                f.write(cert_content)
+            
+            self._temp_files.append(cert_path)
+            return cert_path
+            
+        except IOError as e:
+            raise RuntimeError(f"Failed to write certificate {filename}: {str(e)}") from e
+    
+    def _cleanup_temp_files(self):
+        """Clean up temporary certificate files"""
+        for file_path in self._temp_files:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except OSError as e:
+                print(f"Warning: Failed to remove temporary file {file_path}: {str(e)}")
+        self._temp_files.clear()
