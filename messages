@@ -44,3 +44,8 @@ logger.info("This is a test log sent to Datadog")
 # Combine user/group creation
 RUN groupadd -g 603 appgrp && \
     useradd --disabled-password -u 500 -g 603 appusr
+
+
+
+
+u6u7pRsRGMFP2Kh
