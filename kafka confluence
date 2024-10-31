@@ -1,0 +1,33 @@
+Confluence Page: Creating Kafka Topics Securely Using Python
+Overview
+This guide provides a step-by-step approach to creating a Kafka topic securely using Python. We’ll leverage Kafka's security features, such as SSL/TLS encryption and authentication mechanisms, to ensure that the topic creation process is safe and restricted to authorized users.
+
+Table of Contents
+Prerequisites
+Setting Up the Environment
+Secure Kafka Configuration
+Python Script for Topic Creation
+Error Handling and Logging
+Troubleshooting
+1. Prerequisites
+Make sure you have the following prerequisites in place:
+
+Kafka Server with SSL/TLS configured.
+Python 3.7+ installed on your machine.
+Kafka Admin client library for Python, e.g., confluent_kafka.
+SSL/TLS certificates and access credentials, including:
+Binary file with the encrypted binary key and certificates.
+Password file for decrypting the certificates.
+2. Setting Up the Environment
+2.1. Install Required Libraries
+Install the necessary libraries with pip:
+
+bash
+Copy code
+pip install confluent_kafka
+2.2. Load the SSL/TLS Certificate and Password
+Place the binary and password files in a secure location and load them into your script as needed for authentication.
+
+3. Secure Kafka Configuration
+To interact with a secure Kafka instance, we’ll use SSL/TLS configurations. Here's a sample configuration:
+
