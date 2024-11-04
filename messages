@@ -57,3 +57,47 @@ RUN groupadd -g 603 appgrp && \
 
 'ssl.endpoint.identification.algorithm': 'none',  # Disable hostname verification
     'enable.ssl.certificate.verification': 'false'
+
+
+
+
+
+
+return {
+            "deserialized_message": deserialized_value,
+            "partition": msg.partition(),
+            "offset": msg.offset(),
+            "key": msg.key()
+        }
+
+
+
+if result:
+    print(f"Deserialized message: {result['deserialized_message']}")
+    print(f"Partition: {result['partition']}")
+    print(f"Offset: {result['offset']}")
+    print(f"Key: {result['key']}")
+else:
+    print("Error occurred during message consumption.")
+
+
+how to call
+
+from kafka_consumer import GenericKafkaConsumer
+# Create an instance of the GenericKafkaConsumer class
+kafka_consumer = GenericKafkaConsumer(
+    bootstrap_server="b-3.mskrwfdde001.jqjxhu.c23.kafka.us-east-1.amazonaws.com:9092",
+    consumer_group_id="fr-rwds-eds-consumer-group",
+    topic_name="fr-rwcs-rsp-group",
+    schema_registry_url="https://schema-registry-dev.fitchritings.com"
+)
+
+# Call the consume_messages() method
+result = kafka_consumer.consume_messages()
+if result:
+    print(f"Deserialized message: {result['deserialized_message']}")
+    print(f"Partition: {result['partition']}")
+    print(f"Offset: {result['offset']}")
+    print(f"Key: {result['key']}")
+else:
+    print("Error occurred during message consumption.")
