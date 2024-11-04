@@ -1,0 +1,46 @@
+from confluent_kafka import Consumer, KafkaException
+
+class KafkaMessageConsumer:
+    def __init__(self, broker, group_id, topic):
+        self.broker = broker
+        self.group_id = group_id
+        self.topic = topic
+        self.consumer = Consumer({
+            'bootstrap.servers': self.broker,
+            'group.id': self.group_id,
+            'auto.offset.reset': 'earliest'  # Start reading at the beginning if no offset is stored
+        })
+        self.consumer.subscribe([self.topic])
+
+    def consume_messages(self):
+        try:
+            while True:
+                msg = self.consumer.poll(1.0)  # Polls for a message
+                if msg is None:
+                    continue
+                if msg.error():
+                    raise KafkaException(msg.error())
+                
+                # Return message details
+                yield {
+                    'message': msg.value().decode('utf-8') if msg.value() else None,
+                    'partition': msg.partition(),
+                    'offset': msg.offset(),
+                    'key': msg.key().decode('utf-8') if msg.key() else None
+                }
+        except KeyboardInterrupt:
+            print("Consumption interrupted by user.")
+        finally:
+            self.consumer.close()
+
+# Example usage
+if __name__ == "__main__":
+    kafka_consumer = KafkaMessageConsumer(
+        broker='localhost:9092',
+        group_id='my-consumer-group',
+        topic='my-topic'
+    )
+
+    for message_info in kafka_consumer.consume_messages():
+        print(f"Message: {message_info['message']}, Partition: {message_info['partition']}, 
+               Offset: {message_info['offset']}, Key: {message_info['key']}")
