@@ -1,0 +1,116 @@
+from confluent_kafka import Consumer, KafkaException
+import psycopg2
+import json
+
+# Kafka Configuration
+KAFKA_BROKER = "your_kafka_broker:9093"
+KAFKA_TOPIC = "your_kafka_topic"
+KAFKA_GROUP_ID = "your_group_id"
+KAFKA_SECURITY_CONFIG = {
+    "security.protocol": "SASL_SSL",  # Use "SSL" or "SASL_SSL" as needed
+    "sasl.mechanism": "PLAIN",        # Change if required
+    "sasl.username": "your_username",
+    "sasl.password": "your_password",
+    "ssl.ca.location": "path/to/ca-cert"
+}
+
+# PostgreSQL Configuration
+DB_HOST = "localhost"
+DB_NAME = "your_database"
+DB_USER = "your_user"
+DB_PASSWORD = "your_password"
+DB_PORT = 5432
+
+def connect_to_db():
+    """
+    Establish a connection to the PostgreSQL database.
+    """
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            port=DB_PORT
+        )
+        print("Database connection successful.")
+        return conn
+    except Exception as e:
+        print(f"Error connecting to the database: {e}")
+        return None
+
+def store_data_in_postgres(conn, data):
+    """
+    Store JSON data in PostgreSQL.
+    """
+    try:
+        cursor = conn.cursor()
+        # SQL query to insert data (modify column names as per your table)
+        insert_query = """
+        INSERT INTO your_table (column1, column2, column3)
+        VALUES (%s, %s, %s)
+        """
+        # Parse JSON and prepare data for insertion
+        column1 = data.get("column1")
+        column2 = data.get("column2")
+        column3 = data.get("column3")
+        cursor.execute(insert_query, (column1, column2, column3))
+        conn.commit()
+        print("Data inserted successfully.")
+    except Exception as e:
+        print(f"Error inserting data: {e}")
+    finally:
+        cursor.close()
+
+def consume_kafka_messages():
+    """
+    Consume messages from Kafka and store them in PostgreSQL.
+    """
+    consumer_config = {
+        "bootstrap.servers": KAFKA_BROKER,
+        "group.id": KAFKA_GROUP_ID,
+        "enable.auto.commit": False,
+        **KAFKA_SECURITY_CONFIG
+    }
+
+    consumer = Consumer(consumer_config)
+
+    try:
+        consumer.subscribe([KAFKA_TOPIC])
+        print(f"Subscribed to Kafka topic: {KAFKA_TOPIC}")
+
+        conn = connect_to_db()
+        if not conn:
+            return
+
+        while True:
+            msg = consumer.poll(timeout=1.0)  # Poll for messages
+            if msg is None:
+                continue
+
+            if msg.error():
+                if msg.error().code() == KafkaException._PARTITION_EOF:
+                    print("End of partition reached.")
+                else:
+                    print(f"Kafka error: {msg.error()}")
+                continue
+
+            # Parse JSON message
+            try:
+                message_data = json.loads(msg.value())
+                print(f"Received message: {message_data}")
+                # Store message in PostgreSQL
+                store_data_in_postgres(conn, message_data)
+                consumer.commit()  # Commit offset after successful processing
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON: {e}")
+
+    except Exception as e:
+        print(f"Error consuming Kafka messages: {e}")
+    finally:
+        consumer.close()
+        if conn:
+            conn.close()
+
+if __name__ == "__main__":
+    consume_kafka_messages()
