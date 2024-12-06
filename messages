@@ -101,3 +101,17 @@ if result:
     print(f"Key: {result['key']}")
 else:
     print("Error occurred during message consumption.")
+
+
+
+nested_dicts = main_dict.get("key_with_list", [])
+
+# Update the main dictionary with each nested dictionary
+for d in nested_dicts:
+    main_dict.update(d)
+
+# Optionally, remove the original key that contained the list
+del main_dict["key_with_list"]
+
+print(main_dict)
+
